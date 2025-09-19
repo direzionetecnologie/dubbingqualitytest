@@ -329,6 +329,14 @@ button:focus-visible {
   margin-top: 1.5rem;
 }
 
+.success-banner p {
+  margin: 0.35rem 0 0;
+}
+
+.success-banner p:first-child {
+  margin-top: 0;
+}
+
 .status-card h2 {
   margin-top: 1rem;
   font-size: 2rem;
