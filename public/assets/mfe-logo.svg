@@ -1,0 +1,14 @@
+<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">MFE Logo</title>
+  <desc id="desc">Stylized letters M F E</desc>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+  </defs>
+  <rect x="5" y="5" width="150" height="150" rx="32" fill="url(#grad)" stroke="#0f172a" stroke-width="10" />
+  <g fill="#0f172a" font-family="'Segoe UI', 'Inter', sans-serif" font-weight="700" font-size="72" letter-spacing="6" text-anchor="middle">
+    <text x="80" y="95">MFE</text>
+  </g>
+</svg>
