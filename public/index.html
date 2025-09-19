@@ -16,7 +16,7 @@
       const { useState, useEffect, useCallback } = React;
 
       const STORAGE_KEY_PREFIX = 'mfe-survey-progress::';
-      const SURVEY_CONFIG = window.SURVEY_CONFIG || { userCodes: [], videos: [] };
+      const SURVEY_CONFIG = window.SURVEY_CONFIG || { userCodes: [MFE2024B], videos: [] };
 
       const getStorageKey = (code) => `${STORAGE_KEY_PREFIX}${code}`;
 
