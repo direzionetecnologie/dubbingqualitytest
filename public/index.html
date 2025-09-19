@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MFE Dubbing Quality Survey</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      const LoadingScreen = () => (
+        <div className="status-card" role="status" aria-live="polite">
+          <div className="loader" />
+          <h2>Loading the survey…</h2>
+          <p>Please hold on while we prepare your personalized experience.</p>
+        </div>
+      );
+
+      const ErrorScreen = ({ message }) => (
+        <div className="status-card" role="alert">
+          <img src="assets/mfe-logo.svg" alt="MFE logo" width="96" height="96" />
+          <h2>We can’t open the survey</h2>
+          <p>{message}</p>
+        </div>
+      );
+
+      const WelcomeScreen = ({ onStart, hasProgress, totalVideos }) => (
+        <div className="welcome-card">
+          <img src="assets/mfe-logo.svg" alt="MFE logo" />
+          <h1>Welcome to the MFE Dubbing Quality Study</h1>
+          <p>
+            Thank you for helping the Media for Everyone initiative evaluate AI-dubbed experiences. You’ll
+            watch {totalVideos} short video clips and answer two quick questions about each one.
+          </p>
+          <button className="primary-button" onClick={onStart}>Start survey</button>
+          {hasProgress && (
+            <div className="header-badge">
+              <img src="assets/mfe-logo.svg" alt="" aria-hidden="true" />
+              <span>Your previous answers have been saved. Click start to resume.</span>
+            </div>
+          )}
+        </div>
+      );
+
+      const SurveyScreen = ({
+        video,
+        index,
+        total,
+        selectedIsAi,
+        onSelectIsAi,
+        selectedRating,
+        onSelectRating,
+        onBack,
+        onNext,
+        canProceed,
+        canGoBack,
+        saving,
+        inlineError
+      }) => {
+        if (!video) {
+          return null;
+        }
+
+        const yesId = `is-ai-yes-${video.id}`;
+        const noId = `is-ai-no-${video.id}`;
+
+        return (
+          <div className="survey-container">
+            <div className="video-column">
+              <p className="progress-label">Video {index + 1}/{total}</p>
+              <div className="video-wrapper">
+                <video controls src={video.url} aria-label={video.title || `Video ${index + 1}`} />
+              </div>
+              {video.title && <p className="video-title">{video.title}</p>}
+            </div>
+            <div className="questions-column">
+              <h2>Share your verdict</h2>
+              <div className="question-block">
+                <fieldset>
+                  <legend>Is this video AI-generated?</legend>
+                  <div className="option-group">
+                    <label className={`option-card ${selectedIsAi === true ? 'selected' : ''}`} htmlFor={yesId}>
+                      <input
+                        type="radio"
+                        id={yesId}
+                        name="is-ai"
+                        value="yes"
+                        checked={selectedIsAi === true}
+                        onChange={() => onSelectIsAi(true)}
+                      />
+                      <span>Yes</span>
+                    </label>
+                    <label className={`option-card ${selectedIsAi === false ? 'selected' : ''}`} htmlFor={noId}>
+                      <input
+                        type="radio"
+                        id={noId}
+                        name="is-ai"
+                        value="no"
+                        checked={selectedIsAi === false}
+                        onChange={() => onSelectIsAi(false)}
+                      />
+                      <span>No</span>
+                    </label>
+                  </div>
+                </fieldset>
+              </div>
+              <div className="question-block">
+                <fieldset className="star-fieldset">
+                  <legend>Rate the quality</legend>
+                  <div className="star-rating" role="radiogroup" aria-label="Rate the quality from 1 to 5 stars">
+                    {[1, 2, 3, 4, 5].map((num) => {
+                      const ratingId = `quality-${video.id}-${num}`;
+                      return (
+                        <div className="star-option" key={ratingId}>
+                          <input
+                            type="radio"
+                            id={ratingId}
+                            name="quality-rating"
+                            value={num}
+                            checked={Number(selectedRating) === num}
+                            onChange={() => onSelectRating(num)}
+                          />
+                          <label htmlFor={ratingId} aria-label={`${num} star${num > 1 ? 's' : ''}`}>
+                            <span aria-hidden="true">{`${num}★`}</span>
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="rating-hint">Use the arrow keys or number keys to choose a rating.</p>
+                </fieldset>
+              </div>
+              {inlineError && (
+                <div className="error-banner" role="alert">
+                  {inlineError}
+                </div>
+              )}
+              <div className="navigation-row">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={onBack}
+                  disabled={!canGoBack || saving}
+                >
+                  Back
+                </button>
+                <button type="button" className="primary-button" onClick={onNext} disabled={!canProceed}>
+                  {saving ? 'Saving…' : 'Next'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const ConfirmationScreen = ({
+        answeredCount,
+        total,
+        onSubmit,
+        onReview,
+        submitting,
+        submitStatus
+      }) => (
+        <div className="confirmation-card">
+          <img src="assets/mfe-logo.svg" alt="MFE logo" width="120" height="120" />
+          <h2>{submitStatus === 'done' ? 'Submission received!' : 'Ready to submit'}</h2>
+          <p>
+            {submitStatus === 'done'
+              ? 'Thank you for completing the study. Your responses have been safely stored.'
+              : `You have reviewed ${answeredCount} out of ${total} videos. Submit to lock in your responses.`}
+          </p>
+          <div className="confirmation-actions">
+            {submitStatus !== 'done' && (
+              <button className="secondary-button" type="button" onClick={onReview}>
+                Review videos
+              </button>
+            )}
+            <button
+              className="primary-button"
+              type="button"
+              onClick={onSubmit}
+              disabled={submitStatus === 'done' || submitting}
+            >
+              {submitStatus === 'done' ? 'Submitted' : submitting ? 'Submitting…' : 'Submit'}
+            </button>
+          </div>
+          {submitStatus === 'done' && (
+            <div className="success-banner" role="status" aria-live="polite">
+              All set! Feel free to close this window.
+            </div>
+          )}
+        </div>
+      );
+
+      const FooterNote = () => (
+        <p className="footer-note">
+          Need help? Contact your MFE coordinator with your invitation code.
+        </p>
+      );
+
+      function App() {
+        const [status, setStatus] = useState('loading');
+        const [fatalError, setFatalError] = useState('');
+        const [view, setView] = useState('welcome');
+        const [videos, setVideos] = useState([]);
+        const [answers, setAnswers] = useState({});
+        const [currentIndex, setCurrentIndex] = useState(0);
+        const [selectedIsAi, setSelectedIsAi] = useState(null);
+        const [selectedRating, setSelectedRating] = useState(null);
+        const [saving, setSaving] = useState(false);
+        const [inlineError, setInlineError] = useState('');
+        const [hasProgress, setHasProgress] = useState(false);
+        const [submitting, setSubmitting] = useState(false);
+        const [submitStatus, setSubmitStatus] = useState('idle');
+        const [userCode, setUserCode] = useState('');
+
+        useEffect(() => {
+          const params = new URLSearchParams(window.location.search);
+          const code = params.get('uid');
+          if (!code) {
+            setFatalError('A survey code is required. Please contact the organizer for your personalized link.');
+            setStatus('error');
+            return;
+          }
+
+          async function initialize() {
+            try {
+              const validateResponse = await fetch('/api/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+              });
+              const validationPayload = await validateResponse.json().catch(() => ({}));
+              if (!validateResponse.ok || !validationPayload.success) {
+                throw new Error(
+                  validationPayload.error || 'Invalid or expired code. Please contact the organizer.'
+                );
+              }
+
+              const bootstrapResponse = await fetch('/api/bootstrap');
+              if (!bootstrapResponse.ok) {
+                throw new Error('Unable to load survey configuration. Please try again later.');
+              }
+              const bootstrapData = await bootstrapResponse.json();
+
+              setUserCode(bootstrapData.userCode || code);
+              setVideos(bootstrapData.videos || []);
+              const answerMap = {};
+              (bootstrapData.responses || []).forEach((item) => {
+                answerMap[item.video_id] = {
+                  isAi: Boolean(item.is_ai),
+                  qualityRating: Number(item.quality_rating)
+                };
+              });
+              setAnswers(answerMap);
+              const firstIncompleteIndex = (bootstrapData.videos || []).findIndex(
+                (video) => !answerMap[video.id]
+              );
+              const defaultIndex =
+                firstIncompleteIndex === -1
+                  ? Math.max((bootstrapData.videos || []).length - 1, 0)
+                  : firstIncompleteIndex;
+              setCurrentIndex(defaultIndex);
+              setHasProgress(Object.keys(answerMap).length > 0);
+              if (bootstrapData.completed) {
+                setSubmitStatus('done');
+                setView('confirmation');
+              } else if (firstIncompleteIndex === -1 && (bootstrapData.videos || []).length > 0) {
+                setView('confirmation');
+              } else {
+                setView('welcome');
+              }
+              setStatus('ready');
+            } catch (error) {
+              console.error(error);
+              setFatalError(error.message || 'An unexpected error occurred. Please contact the organizer.');
+              setStatus('error');
+            }
+          }
+
+          initialize();
+        }, []);
+
+        useEffect(() => {
+          if (view !== 'survey') {
+            return;
+          }
+          const activeVideo = videos[currentIndex];
+          if (!activeVideo) {
+            return;
+          }
+          const existing = answers[activeVideo.id];
+          setSelectedIsAi(existing ? existing.isAi : null);
+          setSelectedRating(existing ? existing.qualityRating : null);
+          setInlineError('');
+        }, [view, currentIndex, videos, answers]);
+
+        const answeredCount = videos.reduce(
+          (total, video) => (answers[video.id] ? total + 1 : total),
+          0
+        );
+        const allAnswered = videos.length > 0 && answeredCount === videos.length;
+
+        const handleStart = () => {
+          if (allAnswered || submitStatus === 'done') {
+            setView('confirmation');
+            return;
+          }
+          setView('survey');
+        };
+
+        const handleSelectIsAi = (value) => {
+          setSelectedIsAi(value);
+          setInlineError('');
+        };
+
+        const handleSelectRating = (value) => {
+          setSelectedRating(value);
+          setInlineError('');
+        };
+
+        const handleBack = () => {
+          if (currentIndex === 0) {
+            return;
+          }
+          setCurrentIndex((prev) => Math.max(prev - 1, 0));
+        };
+
+        const handleSaveAndNext = async () => {
+          const activeVideo = videos[currentIndex];
+          if (!activeVideo) {
+            return;
+          }
+          if (selectedIsAi === null || selectedRating === null) {
+            setInlineError('Please answer both questions before continuing.');
+            return;
+          }
+          setSaving(true);
+          setInlineError('');
+          try {
+            const response = await fetch('/api/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                videoId: activeVideo.id,
+                isAi: selectedIsAi,
+                qualityRating: selectedRating
+              })
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.success) {
+              throw new Error(payload.error || 'Failed to save your answers. Please try again.');
+            }
+            setAnswers((prev) => ({
+              ...prev,
+              [activeVideo.id]: {
+                isAi: selectedIsAi,
+                qualityRating: selectedRating
+              }
+            }));
+            if (currentIndex + 1 < videos.length) {
+              setCurrentIndex((prev) => prev + 1);
+            } else {
+              setView('confirmation');
+            }
+          } catch (error) {
+            console.error(error);
+            setInlineError(error.message || 'Could not save your answers. Please try again.');
+          } finally {
+            setSaving(false);
+          }
+        };
+
+        const handleSubmit = async () => {
+          if (submitStatus === 'done') {
+            return;
+          }
+          setSubmitting(true);
+          try {
+            const response = await fetch('/api/complete', { method: 'POST' });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload.success) {
+              throw new Error(payload.error || 'Could not submit the survey. Please try again.');
+            }
+            setSubmitStatus('done');
+          } catch (error) {
+            console.error(error);
+            setInlineError(error.message || 'Could not submit the survey. Please try again.');
+          } finally {
+            setSubmitting(false);
+          }
+        };
+
+        const handleReview = () => {
+          if (videos.length === 0) {
+            return;
+          }
+          const lastIndex = Math.max(videos.length - 1, 0);
+          setCurrentIndex(lastIndex);
+          setView('survey');
+        };
+
+        return (
+          <div className="app-shell">
+            <main className="content-area">
+              {status === 'loading' && <LoadingScreen />}
+              {status === 'error' && <ErrorScreen message={fatalError} />}
+              {status === 'ready' && view === 'welcome' && (
+                <WelcomeScreen onStart={handleStart} hasProgress={hasProgress} totalVideos={videos.length} />
+              )}
+              {status === 'ready' && view === 'survey' && (
+                <SurveyScreen
+                  video={videos[currentIndex]}
+                  index={currentIndex}
+                  total={videos.length}
+                  selectedIsAi={selectedIsAi}
+                  onSelectIsAi={handleSelectIsAi}
+                  selectedRating={selectedRating}
+                  onSelectRating={handleSelectRating}
+                  onBack={handleBack}
+                  onNext={handleSaveAndNext}
+                  canProceed={selectedIsAi !== null && selectedRating !== null && !saving}
+                  canGoBack={currentIndex > 0}
+                  saving={saving}
+                  inlineError={inlineError}
+                />
+              )}
+              {status === 'ready' && view === 'confirmation' && (
+                <ConfirmationScreen
+                  answeredCount={answeredCount}
+                  total={videos.length}
+                  onSubmit={handleSubmit}
+                  onReview={handleReview}
+                  submitting={submitting}
+                  submitStatus={submitStatus}
+                />
+              )}
+            </main>
+            {status === 'ready' && <FooterNote />}
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
